@@ -50,6 +50,11 @@
       color: #667eea;
     }
 
+    .nav-actions {
+      display: flex;
+      gap: 10px;
+    }
+
     .container {
       max-width: 800px;
       margin: 60px auto;
@@ -98,12 +103,94 @@
       font-size: 14px;
       color: #555;
     }
+
+    .search-card {
+      background: #f8fbff;
+      margin-top: 20px;
+      padding: 25px;
+      border-radius: 12px;
+      box-shadow: 0 15px 30px rgba(102, 126, 234, 0.12);
+      text-align: left;
+    }
+
+    .form-row {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+      gap: 18px;
+      margin-bottom: 20px;
+    }
+
+    .form-group label {
+      display: block;
+      margin-bottom: 8px;
+      color: #444;
+      font-weight: 600;
+    }
+
+    .form-group input,
+    .form-group select {
+      width: 100%;
+      padding: 12px 14px;
+      border-radius: 8px;
+      border: 1px solid #d8d8d8;
+      font-size: 15px;
+      color: #333;
+      background: #fff;
+    }
+
+    .search-btn {
+      width: 100%;
+      max-width: 240px;
+      margin: 0 auto;
+      display: block;
+      background: #667eea;
+      color: #fff;
+      border: none;
+      border-radius: 8px;
+      padding: 14px 0;
+      font-size: 16px;
+      font-weight: 700;
+      cursor: pointer;
+      transition: background 0.25s ease;
+    }
+
+    .search-btn:hover {
+      background: #5a6bd1;
+    }
+
+    .result-box {
+      background: #fff;
+      border: 1px solid #e2e8f0;
+      border-radius: 10px;
+      padding: 18px;
+      margin-top: 20px;
+      max-height: 420px;
+      overflow: auto;
+    }
+
+    .result-title {
+      font-weight: 700;
+      margin-bottom: 10px;
+      color: #333;
+    }
+
+    #resultOutput {
+      white-space: pre-wrap;
+      word-break: break-word;
+      font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+      font-size: 14px;
+      color: #1a202c;
+      line-height: 1.6;
+    }
   </style>
 </head>
 <body>
   <div class="navbar">
     <h1>Cyber Sys</h1>
-    <button onclick="logout()">Sair</button>
+    <div class="nav-actions">
+      <button onclick="goLogin()">Voltar ao Login</button>
+      <button onclick="logout()">Sair</button>
+    </div>
   </div>
 
   <div class="container">
@@ -125,26 +212,126 @@
     </div>
   </div>
 
+  <div class="container">
+    <h2>Consultas Rápidas</h2>
+
+    <div class="search-card">
+      <div class="form-row">
+        <div class="form-group">
+          <label for="searchType">Tipo de consulta</label>
+          <select id="searchType">
+            <option value="cep">CEP</option>
+            <option value="ddd">DDD</option>
+            <option value="bancos">Bancos</option>
+            <option value="cnpj">CNPJ</option>
+            <option value="feriados">Feriados</option>
+          </select>
+        </div>
+
+        <div class="form-group" id="queryGroup">
+          <label for="queryInput">Valor</label>
+          <input type="text" id="queryInput" placeholder="Ex: 01001000, 11, 00000000000191, 2026" />
+        </div>
+
+        <div class="form-group" id="stateGroup" style="display:none;">
+          <label for="stateInput">Estado (opcional)</label>
+          <input type="text" id="stateInput" placeholder="Ex: SP" maxlength="2" />
+        </div>
+      </div>
+
+      <button class="search-btn" id="searchBtn">Buscar</button>
+
+      <div class="result-box" id="resultBox">
+        <p class="result-title">Resultado</p>
+        <pre id="resultOutput">Nenhuma consulta realizada ainda.</pre>
+      </div>
+    </div>
+  </div>
+
   <script>
-    // Verificar se o usuário está autenticado
     const token = localStorage.getItem('token');
     const user = localStorage.getItem('user');
+    const searchType = document.getElementById('searchType');
+    const queryGroup = document.getElementById('queryGroup');
+    const stateGroup = document.getElementById('stateGroup');
+    const stateInput = document.getElementById('stateInput');
+    const queryInput = document.getElementById('queryInput');
+    const searchBtn = document.getElementById('searchBtn');
+    const resultOutput = document.getElementById('resultOutput');
 
     if (!token || !user) {
       window.location.href = '/';
     } else {
-      // Exibir informações do usuário
       const userData = JSON.parse(user);
       document.getElementById('username').textContent = userData.username;
       document.getElementById('email').textContent = userData.email;
     }
 
-    // Função de logout
     function logout() {
       localStorage.removeItem('token');
       localStorage.removeItem('user');
       window.location.href = '/';
     }
+
+    function goLogin() {
+      window.location.href = '/';
+    }
+
+    function updateInputFields() {
+      const type = searchType.value;
+      if (type === 'bancos') {
+        queryGroup.style.display = 'none';
+        stateGroup.style.display = 'none';
+      } else if (type === 'feriados') {
+        queryGroup.style.display = 'block';
+        queryInput.placeholder = 'Ano, ex: 2026';
+        stateGroup.style.display = 'block';
+      } else {
+        queryGroup.style.display = 'block';
+        stateGroup.style.display = 'none';
+        queryInput.placeholder = type === 'cep' ? 'Ex: 01001000' : type === 'ddd' ? 'Ex: 11' : 'Ex: 00000000000191';
+      }
+    }
+
+    searchType.addEventListener('change', updateInputFields);
+    updateInputFields();
+
+    searchBtn.addEventListener('click', async () => {
+      const type = searchType.value;
+      const query = queryInput.value.trim();
+      const state = stateInput.value.trim().toUpperCase();
+
+      if (type !== 'bancos' && !query) {
+        resultOutput.textContent = 'Preencha o valor de consulta primeiro.';
+        return;
+      }
+
+      resultOutput.textContent = 'Carregando...';
+
+      try {
+        const params = new URLSearchParams({ type });
+        if (query) params.append('query', query);
+        if (state) params.append('state', state);
+
+        const response = await fetch(`/api/brasil?${params.toString()}`, {
+          headers: {
+            Authorization: `Bearer ${token}`
+          }
+        });
+
+        const data = await response.json();
+
+        if (!response.ok) {
+          resultOutput.textContent = data.message || 'Erro na consulta';
+          return;
+        }
+
+        resultOutput.textContent = JSON.stringify(data, null, 2);
+      } catch (error) {
+        resultOutput.textContent = 'Erro ao conectar com o servidor.';
+        console.error(error);
+      }
+    });
   </script>
 </body>
 </html>
